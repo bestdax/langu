@@ -1,0 +1,11 @@
+.ipynb*
+.DS_Store
+__pycache__
+*.sql
+uis/*
+*.json
+.qt_for_python
+user_files/
+experiments.ipynb
+.idea
+mtime.db
