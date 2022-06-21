@@ -125,10 +125,11 @@ class ChuXinNHK(QObject):
             # if no config file add one
             with open(config_file, 'w') as f:
                 f.write('{}')
-        if 'deck' in mw.addonManager.getConfig('nhk').keys():
+
+        if 'nhk_deck' in mw.addonManager.getConfig('nhk').keys():
             # if getting deck config then run scrap from web
             # if not, pop a dialog to create a deck or choose a deck to contain nhknews cards
-            self.mw.nhknews_deck_name = mw.addonManager.getConfig('nhk')['deck']
+            self.mw.nhknews_deck_name = mw.addonManager.getConfig('nhk')['nhk_deck']
             self.presetting_ready_signal.emit()
         else:
             self.mw.deck_dialog = DeckDialog()

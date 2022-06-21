@@ -53,7 +53,7 @@ class DeckDialog(QWidget, Ui_Form):
                 latest_mod = deck['mod']
                 latest_created_deck = deck
         self.mw.nhknews_deck_name = latest_created_deck['name']
-        self.mw.addonManager.writeConfig('nhk', {'deck': self.mw.nhknews_deck_name})
+        self.mw.addonManager.writeConfig('nhk', {'nhk_deck': self.mw.nhknews_deck_name})
         self.deck_ready_signal.emit()
 
     def new_dialog(self):
