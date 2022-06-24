@@ -3,9 +3,9 @@ from PyQt6.QtWidgets import QWidget, QApplication
 import sys
 
 try:
-    from forms.log import Ui_Form
+    from .forms.log import Ui_Form
 except ImportError:
-    from nhk.forms.log import Ui_Form
+    from forms.log import Ui_Form
 
 
 class Logger(QWidget, Ui_Form):
@@ -24,6 +24,11 @@ class Logger(QWidget, Ui_Form):
         text = self.label.text() + '\n' + f'<p>{text}</p>'
         self.label.setText(text)
         self.label.update()
+
+    def closeEvent(self, event) -> None:
+        event.ignore()
+        self.hide()
+        print('still running')
 
 
 if __name__ == '__main__':

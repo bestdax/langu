@@ -69,7 +69,7 @@ class UI2PY(QObject):
                     ui_path = file
                 filename, ext = os.path.splitext(os.path.basename(ui_path))
                 form_path = os.path.join(self.base_dir, 'forms', filename + '.py')
-                os.system(f'pyuic6 "{ui_path}" -o "{form_path}"')
+                os.system(f'venv/bin/pyuic6 "{ui_path}" -o "{form_path}"')
 
     def write_into_database(self):
         connection = sqlite3.connect('mtime.db')

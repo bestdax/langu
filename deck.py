@@ -6,14 +6,12 @@ from PyQt6.QtCore import Qt, pyqtSignal
 import sys
 
 try:
-    from nhk.forms.deck import Ui_Form
+    from langu.forms.deck import Ui_Form
 except ImportError:
     from forms.deck import Ui_Form
 from aqt import mw
 from aqt import ProfileManager
 from aqt.operations.deck import add_deck_dialog
-
-from aqt.utils import getOnlyText, tooltip, tr
 
 
 class DeckDialog(QWidget, Ui_Form):
@@ -36,7 +34,7 @@ class DeckDialog(QWidget, Ui_Form):
     def confirm(self):
         row = self.listWidget.currentRow()
         deck_name = self.listWidget.item(row).text()
-        self.mw.addonManager.writeConfig(__name__, {'deck': deck_name})
+        self.mw.addonManager.writeConfig(__name__, {'nhk_deck': deck_name})
         self.mw.nhknews_deck_name = deck_name
         self.deck_ready_signal.emit()
         self.close()
@@ -53,7 +51,7 @@ class DeckDialog(QWidget, Ui_Form):
                 latest_mod = deck['mod']
                 latest_created_deck = deck
         self.mw.nhknews_deck_name = latest_created_deck['name']
-        self.mw.addonManager.writeConfig('nhk', {'nhk_deck': self.mw.nhknews_deck_name})
+        self.mw.addonManager.writeConfig(__name__, {'nhk_deck': self.mw.nhknews_deck_name})
         self.deck_ready_signal.emit()
 
     def new_dialog(self):
@@ -67,6 +65,5 @@ if __name__ == '__main__':
     pm.load('Dax')
     col = anki.storage.Collection(pm.collectionPath())
     mw1 = DeckDialog()
-    mw1.listWidget.addItems([value['name'] for value in anki.decks.DecksDictProxy(col).values()])
 
     sys.exit(app.exec())

@@ -9,7 +9,7 @@ if not (LangU_menu := mw.menuBar().findChild(QMenu, "LangU")):
 nhk = ChuXinNHK()
 nhknews_action = QAction("NHK News", mw)
 LangU_menu.addAction(nhknews_action)
-qconnect(nhknews_action.triggered, nhk.run)
+qconnect(nhknews_action.triggered, nhk.check_setting)
 
 
 
