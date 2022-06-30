@@ -1,42 +1,32 @@
-import os
-import re
-import time
-
-import requests
-import urllib3
-import random
-
-from PyQt6.QtCore import QThread, pyqtSlot
-from bs4 import BeautifulSoup
-import sqlite3
+from PyQt6.QtCore import QThread
 
 from aqt import mw
 from aqt.qt import *
 from aqt import ProfileManager
-from aqt.gui_hooks import reviewer_did_show_question
-from anki.cards import Card
 
-try:
-    from .deck import DeckDialog
-    from .scrap import Scrap
-    from .log import Logger
-    from .db import Database
-except ImportError:
-    from deck import DeckDialog
-    from scrap import Scrap
-    from log import Logger
-    from db import Database
+from .workers import UrlWorker, TaskManager
+from .deck import DeckDialog
+from .log import Logger
+from .db import Database
+from .download import DownloadWindow
 
 
-class ChuXinNHK(QObject):
+class NHK(QObject):
     setting_ready_signal = pyqtSignal()
+    message_signal = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
+        self.task_thread = None
+        self.task_manager = None
+        self.urls_to_handle = None
+        self.task_number = 10
+        self.url_thread = None
+        self.url_worker = None
+        self.download_window = None
         self.scrap = None
-        self.logger_thread = None
         self.scrap_thread = None
-        self.logger = None
+        self.logger = Logger()
         self.nhknews_deck_name = None
         self.addon_folder = os.path.dirname(__file__)
         self.user_files = os.path.join(self.addon_folder, "user_files")
@@ -45,13 +35,13 @@ class ChuXinNHK(QObject):
         self.db_path = os.path.join(self.user_files, 'data.db')
         self.db = None
         self.mw = mw
-        self.scrap_thread = None
+        self.run_count = 0
 
         self.setting_ready_signal.connect(self.on_setting_ready)
 
-    def log(self, msg):
-        self.logger.update_message(msg)
-        self.logger.update()
+        self.init_url_worker()
+        self.init_download_window()
+        self.init_task_manager()
 
     def init_db(self):
         table_names = ['urls', 'notes', 'users', 'log']
@@ -97,11 +87,12 @@ class ChuXinNHK(QObject):
                 self.create_table(table_name)
 
     def check_setting(self):
-        self.db = Database(self.db_path)
         # init database if db not exists
-        if not os.path.isfile(self.db_path):
+        if not self.db:
+            self.db = Database(self.db_path)
             self.init_db()
         else:
+            self.db = Database(self.db_path)
             self.check_db()
 
         # prepare nhknews model
@@ -124,7 +115,6 @@ class ChuXinNHK(QObject):
                 nhknews_model['flds'] = nhknews_model_data['flds']
                 mw.col.models.save(nhknews_model)
 
-        self.scrap_thread = QThread()
         # config setting
         config_file = os.path.join(os.path.dirname(__file__), 'config.json')
         if not os.path.isfile(config_file):
@@ -141,8 +131,6 @@ class ChuXinNHK(QObject):
             self.mw.deck_dialog = DeckDialog()
             self.mw.deck_dialog.deck_ready_signal.connect(self.on_deck_ready)
 
-        self.db.close()
-
     @pyqtSlot()
     def on_setting_ready(self):
         self.run()
@@ -151,23 +139,65 @@ class ChuXinNHK(QObject):
     def on_deck_ready(self):
         self.setting_ready_signal.emit()
 
+    def init_url_worker(self):
+        # init url worker to handle urls
+        self.url_thread = QThread()
+        self.url_worker = UrlWorker()
+        self.url_worker.moveToThread(self.url_thread)
+        self.url_thread.started.connect(self.url_worker.run)
+        self.url_worker.message_signal.connect(self.logger.update_message)
+
+    def init_download_window(self):
+        # init download window
+        self.download_window = DownloadWindow()
+
+    def init_task_manager(self):
+        self.task_manager = TaskManager([])
+        self.task_thread = QThread()
+        self.task_manager.moveToThread(self.task_thread)
+        self.task_manager.message_signal.connect(self.logger.update_message)
+        self.task_manager.all_tasks_finished_signal.connect(self.logger.scroll_to_bottom)
+        self.task_thread.start()
+
+    def set_urls(self):
+        task_number = self.download_window.spinBox.value()
+        urls = self.url_worker.urls_to_handle[:task_number]
+        self.task_manager.set_urls(urls)
+
     def run(self):
-        if not self.scrap:
-            self.logger = Logger()
-            self.logger_thread = QThread()
-            self.logger.moveToThread(self.logger_thread)
-            self.logger_thread.start()
-            self.scrap = Scrap()
-            self.logger.hide()
-            self.scrap.message_signal.connect(self.logger.update_message)
-            self.scrap.download.download_signal.connect(self.logger.show)
-            self.scrap.moveToThread(self.scrap_thread)
-            self.scrap_thread.started.connect(self.scrap.run)
-            self.scrap_thread.start()
+        self.logger.show()
+        if self.run_count == 0:
+            # connect signals with slots
+            self.url_worker.complete_signal.connect(
+                lambda urls_to_handle: self.download_window.spinBox.setMaximum(len(urls_to_handle)))
+            self.url_worker.complete_signal.connect(
+                lambda urls_to_handle: self.download_window.spinBox.setValue(len(urls_to_handle)))
+            self.url_worker.complete_signal.connect(
+                lambda urls_to_handle: self.download_window.spinBox.setSuffix(f'/{len(urls_to_handle)}')
+            )
+            self.download_window.download_button.clicked.connect(self.task_manager.run)
+            self.download_window.spinBox.valueChanged.connect(
+                lambda value: self.task_manager.set_urls(self.url_worker.urls_to_handle[:value]))
+
+            self.url_worker.complete_signal.connect(self.download_window.show)
+            self.url_worker.complete_signal.connect(self.logger.hide)
+            self.url_worker.complete_signal.connect(self.download_window.setup_spinbox)
+
+            self.download_window.download_button.clicked.connect(self.logger.show)
+            self.download_window.download_button.clicked.connect(self.set_urls)
+
+            self.logger.download_more_button.clicked.connect(self.url_worker.run)
+
+            self.url_thread.start()
         else:
-            self.scrap.run()
+            if self.logger.isHidden():
+                self.logger.show()
+            self.url_worker.run()
+            self.download_window.show()
+
+        self.run_count += 1
 
 
 if __name__ == '__main__':
-    nhk = ChuXinNHK()
+    nhk = NHK()
     # nhk.run()

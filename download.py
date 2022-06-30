@@ -10,7 +10,7 @@ except ImportError:
     from titles import ChooseTitles
 
 
-class Download(QWidget, Ui_Form):
+class DownloadWindow(QWidget, Ui_Form):
     download_signal = pyqtSignal()
 
     def __init__(self):
@@ -19,20 +19,19 @@ class Download(QWidget, Ui_Form):
         self.setupUi(self)
         self.custom_ui()
 
-        self.show()
-
     def custom_ui(self):
         self.download_button.clicked.connect(self.download)
         self.spinBox.setEnabled(False)
         self.comboBox.currentTextChanged.connect(self.setup_spinbox)
 
     def download(self):
-        self.download_signal.emit()
         self.hide()
+        self.download_signal.emit()
 
     def setup_spinbox(self):
         if self.comboBox.currentText() == 'All':
             self.spinBox.setEnabled(False)
+            self.spinBox.setValue(self.spinBox.maximum())
         else:
             self.spinBox.setEnabled(True)
             self.spinBox.setValue(10)
@@ -43,5 +42,5 @@ class Download(QWidget, Ui_Form):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    mw = Download()
+    mw = DownloadWindow()
     sys.exit(app.exec())

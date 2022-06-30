@@ -4,11 +4,14 @@ import sqlite3
 from sqlite3 import Cursor
 from typing import Any
 
+from PyQt6.QtCore import QObject
 
-class Database:
+
+class Database(QObject):
     def __init__(self, db_path):
+        super().__init__()
         self.path = db_path
-        self._db = sqlite3.connect(self.path)
+        self._db = sqlite3.connect(self.path, check_same_thread=False)
 
     def execute(self, sql: str, *args: Any, **kwargs: Any) -> Cursor:
         sql = sql.strip()
@@ -186,5 +189,4 @@ if __name__ == '__main__':
     db = Database('user_files/data.db')
     # db.table('users').insert_many('name', [f'{chr(i + 97)}' * (i + 1) for i in range(26)])
     # db.table('users').delete('name!="dax"', 'name!="demo"')
-    db.table('notes').update('', '', '')
     print(db.table('notes').getone('id'))

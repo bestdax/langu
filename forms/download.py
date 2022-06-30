@@ -23,6 +23,8 @@ class Ui_Form(object):
         self.comboBox.addItem("")
         self.horizontalLayout.addWidget(self.comboBox)
         self.spinBox = QtWidgets.QSpinBox(Form)
+        self.spinBox.setSuffix("")
+        self.spinBox.setPrefix("")
         self.spinBox.setSingleStep(10)
         self.spinBox.setObjectName("spinBox")
         self.horizontalLayout.addWidget(self.spinBox)
